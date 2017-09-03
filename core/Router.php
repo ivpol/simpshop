@@ -5,76 +5,85 @@
  */
 class Router
 {
-    private $route; //маршрут к методу контроллера
+    private $route; //оригинальный адрес
 
-    private $controller; //массив с названием текущего контроллера и его методом
+    private $mask; //маска для разбивки адреса на переменные (разделители - . и /)
 
-    private static $aliases; //алиасы для адресов страниц
+    private $controller; //массив с названием текущего контроллера, его методом и параметрами
 
-    //при создании задаётся маршрут
-    public function __construct($route = '/', Array $aliases = [])
+    //при создании задаётся маршрут и маска
+    public function __construct($route = '/', $mask = '')
     {
-        //по умолчанию маршрут - корень сайта
-        if (!$route) {
-            $route = '/';
-        }
-
-        $this->setRoute($route);
-        $this->setAliases($aliases);
+        $this->controller = ['name' => '', 'action' => '', 'params' => []];
+        $this->setRoute($route, $mask);
 
     }
 
     //установка маршрута
-    public function setRoute($route)
+    public function setRoute($route, $mask = '')
     {
-        $this->route = trim(strtolower($route)); //задаётся отформатированный маршрут
-        $this->setController($this->route);//задаются актуальные данные о контроллере
+        $route = trim(strtolower($route));
+        if ($route) {
+            $this->route = $route;
+        } else {
+            $route = '/';
+        }
+        $this->mask = trim($mask);
+        $this->setController();//задаются актуальные данные о контроллере
     }
 
     //установка данных контроллера
-    private function setController($route)
+    private function setController()
     {
-        //удаляется корень для удобства
-        if (strpos($route, '/') === 0) {
-            $route = substr($route, 1);
-        }
-
-        $this->controller = ['name' => '', 'action' => '', 'params' => []]; //удаляется информация о текущем контроллере
-
-        //если кроме корня в маршруте есть ещё данные
-        if ($route) {
-            $queryStart = strpos($route, '?');//есть ли в строке запроса get-параметры
-            if ($queryStart !== false) {
-                parse_str(substr($route, $queryStart + 1), $params);
-                $this->controller['params'] = $params; //строка запроса преобразуется в массив и добавляется параметром контроллера
-                $route = strstr($route, '?', true);
-            }
-
-            $routeSegments = explode('/', $route, 3); //массив сегментов из строки маршрута, нужны только первые два
-
-            //установка актуальных данных о контроллере
-
-            //первый сегмент - название класса контроллера, проверяется на корректность
-            if (isset($routeSegments[0]) && $this->checkNameFormat($routeSegments[0])) {
-                $this->controller['name'] = $routeSegments[0];
-            }
-
-            //второй сегмент - названиме метода контроллера, если есть название контроллера и прошло проверку на корректность
-            if ($this->controller['name'] && isset($routeSegments[1]) && $this->checkNameFormat($routeSegments[1])) {
-                $this->controller['action'] = $routeSegments[1];
-            }
-        }
-    }
-
-    //установка алиасов для адресов страниц
-    public function setAliases(Array $aliases)
-    {
-        if ($aliases && empty($this->aliases)) {
-            $aliases = array_map($aliases, 'strtolower');//форматирование всех алиасов
-            $this->aliases = $aliases;
-            $aliasRoute = $this->findAlias($this->route);//поиск текущего маршрута в списке
-            if ($aliasRoute) {
-                $this->setController($aliasRoute);//запрос заменяется на соответствующую строку запроса из алиасов
+        $controller = [];
+        $routeData = preg_split('/\//', $this->route, 2, PREG_SPLIT_NO_EMPTY); //строка запроса разбивается на две, по разделителю, пустые не нужны
+        if (isset($routeData[0]) && $this->isNameCorrect($routeData[0])) { //если первая подстрока есть и не содержит некорректных символов
+            $controller['name'] = $routeData[0]; //первая подстрока - название контроллера
+            if (isset($routeData[1])) { //если есть вторая подстрока, она должна содержать название метода и параметры
+                $paramsPosition = strpos($routeData[1], '?'); //позиция начала строки с параметрами
+                if ($paramsPosition !== 0) { // если строка с данными пути не начинается с параметров, а содержит как минимум название метода
+                    $paramsString = '';//параметры для метода контроллера, которые переданы в формате get
+                    if ($paramsPosition > 0) { // если строка с параметрами вообще есть
+                        $routeData = explode('?', $routeData[1], 2); //данные о пути теперь содержат строку с названием метода (и, если есть, параметрами для маски) и строку с параметрами
+                        $paramsString = $routeData[1];
+                    } else { //если строки с параметрами нет
+                        $routeData = [$routeData[1]];//данные о пути содержат только одну строку - с названием метода и, если есть, парметрами для маски
+                    }
+                    // данные о пути теперь массив с двумя строками
+                    // (первая - название метода котроллера, вторая - строка параметров, которые передаются через маску)
+                    $routeData = preg_split('/[\/\.]/', $routeData[0], 2);
+                    if ($routeData[0] && $this->isNameCorrect($routeData[0])) { //если название контроллера корректно
+                        $controller['action'] = $routeData[0];
+                        $params = [];//общий массив, в который добавляются все параметры
+                        if ($paramsString) {//если есть параметры в формате get-запроса
+                            parse_str($paramsString, $params);
+                        }
+                        // TODO добавить расширенный функционал для создания масок адресов (напр. *.par)
+                        if ($this->mask) {// если есть маска
+                            $key = '';
+                            $value = '';
+                            //получаем полный массив, где названия переменных разбиты разделителями (если пустой - соответствующее значение из строки запроса не нужно)
+                            $paramsKeys = preg_split('/[\/\.]/', $this->mask);
+                            //массив из строки, разбитый по разделителям
+                            $paramsValues = [];
+                            if (!empty($routeData[1])) {
+                                $paramsValues = preg_split('/[\/\.]/', $routeData[1]);
+                            }
+                            while ($key = array_shift($paramsKeys)) {
+                                if ($key) {//если непустое название ключа, то ему задаётся соответствующее значение из строки
+                                    if (isset($paramsValues[0])) {
+                                        $value = array_shift($paramsValues);
+                                    } else {
+                                        $value = '';
+                                    }
+                                    $params[$key] = $value;
+                                }
+                            }
+                        }
+                        $controller['params'] = $params;
+                        $this->controller = $controller;
+                    }
+                }
             }
         }
     }
@@ -101,29 +110,7 @@ class Router
     //возвращает строку, сгенерированную из названий контроллера и метода и массива параметров
     public function getRoute($controller = '', $action = '', Array $params = [])
     {
-        $route = '/';//по умолчанию - корень сайта
 
-        if (!$controller || !$this->checkNameFormat($controller)) {
-            $controller = $this->controller['name'];//если не указан контроллер, используется текущий
-        }
-
-        if ($controller) {
-            $route .= '/' . $controller;
-            if (!$action || !$this->checkNameFormat($action)) {
-                $action = $this->controller['action'];//если не указан метод - используется текущий
-            }
-            if ($action) {
-                $route .= '/' . $action;
-            }
-            if ($params) {
-                $route .= '?' . $this->getParamsString();//массив параметров форматируется в строку get-запроса
-            }
-            $aliasRoute = $this->findAlias($route);
-            if ($aliasRoute) {
-                $route = $aliasRoute;
-            }
-        }
-        return $route;
     }
 
     //преобразование массива в строку запроса
@@ -134,18 +121,9 @@ class Router
         }
     }
 
-    //поиск в алиасах маршрута
-    private function findAlias($route)
-    {
-        if ($this->aliases && $route && !empty($this->aliases[$route])) {
-            return $this->aliases[$route];
-        } else {
-            return false;
-        }
-    }
 
     //проверка названий контроллеров и методов на корректность
-    private function checkNameFormat($name)
+    private function isNameCorrect($name)
     {
         if ($name) {
             if (preg_match('/[^a-z]/i', $name)) {

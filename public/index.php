@@ -13,23 +13,27 @@ $config = new Config;
 include_once ROOT_DIR . '/core/Router.php';
 
 //маршрутизация
-$router = new Router($_SERVER['REQUEST_URI']);
+$route = '';
 
-//дефолтный маршрут, если в корне
-if ($router->getRoute() === '/') {
-    //$route = $router->getRoute('', '', $router->getParams());
-    //$router->setRoute($route);
+if ($_SERVER['REQUEST_URI'] != '/') {
+    $route = $_SERVER['REQUEST_URI'];
+} else {
+    //дефолтный маршрут, если в корне
+    $route = '/main/index';
 }
 
+$router = new Router($route, 'content_type');
+
 $controllerName = $router->getControllerName();
-if ($controllerName) {// TODO добавить проверку на существование класса Controller . $controllerName
-    // $controller = new 'Controller' . $controllerName();
-    // $action = $router->getAction();
-    // if ($action && is_callable([$controller, $action])) {
-    //     $controller->$action($router->getParams());
-    // } else {
-    //
-    // }
+if ($controllerName && class_exists('\\app\\controllers\\' . $controllerName)) {
+    $controllerName = '\\app\\controllers\\' . $controllerName;
+    $controller = new $controllerName();
+    $action = $router->getAction();
+    if ($action && is_callable([$controller, $action])) {
+         $controller->$action($router->getParams());
+    } else {
+        // TODO 404
+    }
 
 } else {
     // TODO 404
