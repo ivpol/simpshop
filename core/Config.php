@@ -1,4 +1,6 @@
 <?php
+namespace Core;
+use \ArrayAccess;
 
 /**
  * Класс для доступа к данным из конфигурационных файлов, доступ к данным объекта как к массиву
@@ -11,6 +13,12 @@ class Config implements ArrayAccess
     //при создании задаются основные настройки
     public function __construct()
     {
+        //установка констант
+        //TODO ограничить их классом
+        if (!defined('ROOT_DIR')) {
+            define('ROOT_DIR', realpath(__DIR__ . '/../'));
+        }
+
         $this->_settings = $this->loadSettings('main');
     }
 

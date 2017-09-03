@@ -7,10 +7,11 @@ if (!defined('ROOT_DIR')) {
 //Загрузка конфигурационных настроек сайта
 include_once ROOT_DIR . '/core/Config.php';
 // TODO добавить статику в конфиг
-$config = new Config;
+$config = new Core\Config;
 
-// TODO добавить автозагрузку
-include_once ROOT_DIR . '/core/Router.php';
+include_once ROOT_DIR . '/core/Autoloader.php';
+$autoloader = new Core\Autoloader(ROOT_DIR);
+$autoloader->loadFromDir('core/utils');
 
 //маршрутизация
 $route = '';
@@ -22,19 +23,21 @@ if ($_SERVER['REQUEST_URI'] != '/') {
     $route = '/main/index';
 }
 
-$router = new Router($route, 'content_type');
+$router = new Core\Router($route, 'content_type');
 
 $controllerName = $router->getControllerName();
-if ($controllerName && class_exists('\\app\\controllers\\' . $controllerName)) {
-    $controllerName = '\\app\\controllers\\' . $controllerName;
+if ($controllerName && class_exists('App\\Controllers\\' . $controllerName)) {
+    $controllerName = 'App\\Controllers\\' . $controllerName;
     $controller = new $controllerName();
     $action = $router->getAction();
     if ($action && is_callable([$controller, $action])) {
          $controller->$action($router->getParams());
     } else {
         // TODO 404
+        echo 'Метод не существует<br>';
     }
 
 } else {
     // TODO 404
+    echo 'Класс не существует<br>';
 }
