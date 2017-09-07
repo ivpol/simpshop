@@ -1,14 +1,14 @@
 <?php
+
 namespace Core;
-use \ArrayAccess;
 
 /**
  * Класс для доступа к данным из конфигурационных файлов, доступ к данным объекта как к массиву
  */
-class Config implements ArrayAccess
+class Config implements \ArrayAccess
 {
     //массив, в котором хранятся настройки
-    private $_settings;
+    private static $_settings;
 
     //при создании задаются основные настройки
     public function __construct()
@@ -19,7 +19,7 @@ class Config implements ArrayAccess
             define('ROOT_DIR', realpath(__DIR__ . '/../'));
         }
 
-        $this->_settings = $this->loadSettings('main');
+        self::$_settings = $this->loadSettings('main');
     }
 
     //функция загрузки данных из конфигурационных файлов, передаётся название (или путь) без расширения
@@ -46,7 +46,7 @@ class Config implements ArrayAccess
 
     //проверка на существование элемента массива
     public function offsetExists($offset) {
-        return isset($this->_settings[$offset]);
+        return isset(self::$_settings[$offset]);
     }
 
     //при попытке удалить значение вернётся false
@@ -58,10 +58,10 @@ class Config implements ArrayAccess
     // получение данных конфигурации
     public function offsetGet($offset)
     {
-        //если ключа нет, загружается файл, название/путь - название ключа
-        if (!isset($this->_settings[$offset])) {
-            $this->_settings[$offset] = $this->loadSettings($offset);
+        //если ключа нет, загружается файл, имя файла - название ключа
+        if (!isset(self::$_settings[$offset])) {
+            self::$_settings[$offset] = $this->loadSettings($offset);
         }
-        return $this->_settings[$offset];
+        return self::$_settings[$offset];
     }
 }
