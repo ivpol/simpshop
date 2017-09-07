@@ -6,4 +6,8 @@ RewriteBase /
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !.*\.(ico|gif|jpg|jpeg|png|js|css)
-RewriteRule ^([^?]*) index.php?_route_=$1 [L,QSA]
+
+
+# RewriteRule ^([^?]*) index.php?_route_=$1 [L,QSA]
+
+RewriteRule ^([a-z]+)*/*([a-z]+)*/*(.*) index.php?_module_=$1&_action_=$2&_params_=$3 [L,QSA]
