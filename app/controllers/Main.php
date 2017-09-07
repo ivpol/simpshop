@@ -1,11 +1,11 @@
 <?php
+
 namespace App\Controllers;
-use Core\Controller;
 
 /**
  *
  */
-class Main extends Controller
+class Main extends \App\Controller
 {
 
     function __construct()
@@ -13,7 +13,7 @@ class Main extends Controller
         ;
     }
 
-    public function index($value='')
+    public function index(Array $params = [])
     {
         echo 'I am method Index from Main!';
     }
